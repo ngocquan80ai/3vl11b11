@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Học liệu Tương tác: Bài 11 - Thang Sóng Điện Từ</title>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vuedraggable@next/dist/vuedraggable.umd.min.js"></script>
+
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            startup: { typeset: false }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        .animate-fade-in { animation: fadeIn 0.35s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        [v-cloak] { display: none; }
+        body { background-color: #f8fafc; overflow-x: hidden; }
+        .math-box mjx-container { overflow-x: auto; overflow-y: hidden; max-width: 100%; }
+        
+        /* Hiệu ứng kéo thả */
+        .sortable-ghost { opacity: 0.4; border: 2px dashed #94a3b8; }
+        .drag-item { cursor: grab; }
+        .drag-item:active { cursor: grabbing; }
+
+        /* ĐÃ SỬA: Phổ màu Thang sóng điện từ khớp với vị trí % cố định */
+        .spectrum-bar {
+            background: linear-gradient(to right, 
+                #780000 0%, #dc2626 25%,    /* Vô tuyến: 0% - 25% */
+                #ef4444 25%, #ff4500 45%,   /* Hồng ngoại: 25% - 45% */
+                #ff0000 45%, #ff7f00 46.6%, #ffff00 48.3%, #00ff00 50%, #0000ff 51.6%, #4b0082 53.3%, #8b00ff 55%, /* Ánh sáng nhìn thấy phóng to: 45% - 55% */
+                #4c1d95 55%, #1e1b4b 75%,   /* Tử ngoại: 55% - 75% */
+                #0f0e26 75%, #050505 90%,   /* Tia X: 75% - 90% */
+                #000000 90%, #000000 100%   /* Tia Gamma: 90% - 100% */
+            );
+        }
+        
+        /* Chống bôi đen text khi kéo thanh trượt */
+        .no-select { user-select: none; -webkit-user-select: none; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 p-4 md:p-8 font-sans">
+
+    <div id="app" v-cloak class="max-w-6xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden p-6 md:p-8 border border-slate-100 animate-fade-in">
+        
+        <h1 class="text-3xl font-extrabold text-center text-blue-700 mb-2 uppercase tracking-wide">
+            Bài 11: Sóng điện từ
+        </h1>
+        <p class="text-center text-gray-500 mb-8 font-medium">
+            Thang sóng điện từ - Mối liên hệ giữa bước sóng và tính chất
+        </p>
+
+        <div class="flex flex-wrap justify-center gap-2 mb-8 border-b pb-4">
+            <button v-for="tab in tabs" :key="tab.id" @click="switchTab(tab.id)"
+                :class="['px-6 py-2.5 font-bold rounded-full transition-all duration-300', 
+                         activeTab === tab.id ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-800']">
+                {{ tab.name }}
+            </button>
+        </div>
+
+        <div v-show="activeTab === 1" class="animate-fade-in space-y-6">
+            <h2 class="text-2xl font-bold text-blue-800 mb-4 text-center">Hoạt động: Nối vòng tay lớn bức xạ</h2>
+            <p class="text-center text-gray-600 mb-6">Em hãy kéo các thẻ chứa <strong>ứng dụng/tính chất</strong> thả vào đúng hộp tên gọi của <strong>loại bức xạ</strong> tương ứng.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div class="md:col-span-5 bg-slate-100 rounded-xl p-4 border border-slate-200 shadow-sm flex flex-col mb-4">
+                    <h3 class="text-lg font-bold text-slate-700 mb-3 text-center">Kho thẻ Ứng dụng</h3>
+                    <draggable v-model="dragData.unassigned" group="cards" item-key="id" class="flex flex-wrap gap-3 min-h-[60px] justify-center p-2">
+                        <template #item="{element}">
+                            <div class="drag-item bg-white px-4 py-3 rounded-lg border border-gray-300 shadow-sm text-sm font-medium text-gray-800 hover:shadow-md transition-shadow max-w-sm">
+                                {{ element.text }}
+                            </div>
+                        </template>
+                    </draggable>
+                </div>
+
+                <div class="bg-blue-50 rounded-xl p-4 border border-blue-200 shadow-sm flex flex-col">
+                    <h3 class="font-bold text-blue-800 mb-3 text-center border-b border-blue-200 pb-2">📡 Sóng vô tuyến</h3>
+                    <draggable v-model="dragData.zone_votuyen" group="cards" item-key="id" class="flex-1 min-h-[120px] space-y-2 p-2 border-2 border-dashed border-blue-300 rounded-lg bg-blue-50/50">
+                        <template #item="{element}">
+                            <div class="drag-item bg-white p-2 rounded border border-blue-300 shadow-sm text-xs font-medium text-blue-900">{{ element.text }}</div>
+                        </template>
+                    </draggable>
+                </div>
+
+                <div class="bg-red-50 rounded-xl p-4 border border-red-200 shadow-sm flex flex-col">
+                    <h3 class="font-bold text-red-800 mb-3 text-center border-b border-red-200 pb-2">🌡️ Tia hồng ngoại</h3>
+                    <draggable v-model="dragData.zone_hongngoai" group="cards" item-key="id" class="flex-1 min-h-[120px] space-y-2 p-2 border-2 border-dashed border-red-300 rounded-lg bg-red-50/50">
+                        <template #item="{element}">
+                            <div class="drag-item bg-white p-2 rounded border border-red-300 shadow-sm text-xs font-medium text-red-900">{{ element.text }}</div>
+                        </template>
+                    </draggable>
+                </div>
+
+                <div class="bg-purple-50 rounded-xl p-4 border border-purple-200 shadow-sm flex flex-col">
+                    <h3 class="font-bold text-purple-800 mb-3 text-center border-b border-purple-200 pb-2">🦠 Tia tử ngoại</h3>
+                    <draggable v-model="dragData.zone_tungoai" group="cards" item-key="id" class="flex-1 min-h-[120px] space-y-2 p-2 border-2 border-dashed border-purple-300 rounded-lg bg-purple-50/50">
+                        <template #item="{element}">
+                            <div class="drag-item bg-white p-2 rounded border border-purple-300 shadow-sm text-xs font-medium text-purple-900">{{ element.text }}</div>
+                        </template>
+                    </draggable>
+                </div>
+
+                <div class="bg-gray-100 rounded-xl p-4 border border-gray-300 shadow-sm flex flex-col md:col-span-2">
+                    <h3 class="font-bold text-gray-800 mb-3 text-center border-b border-gray-300 pb-2">☠️ Tia X (Roentgen)</h3>
+                    <draggable v-model="dragData.zone_tiax" group="cards" item-key="id" class="flex-1 min-h-[120px] space-y-2 p-2 border-2 border-dashed border-gray-400 rounded-lg bg-gray-50">
+                        <template #item="{element}">
+                            <div class="drag-item bg-white p-2 rounded border border-gray-400 shadow-sm text-xs font-medium text-gray-900">{{ element.text }}</div>
+                        </template>
+                    </draggable>
+                </div>
+            </div>
+
+            <div class="flex flex-col items-center mt-2">
+                <button @click="checkDragDrop" class="px-8 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow hover:bg-indigo-700 transition-colors">
+                    Kiểm tra kết quả
+                </button>
+                <div v-if="dragFeedback" :class="['mt-4 px-6 py-3 rounded-lg font-semibold w-full text-center max-w-2xl border', dragIsCorrect ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-100 text-red-800 border-red-300']">
+                    {{ dragFeedback }}
+                </div>
+            </div>
+        </div>
+
+        <div v-show="activeTab === 2" class="animate-fade-in space-y-6">
+            <h2 class="text-2xl font-bold text-blue-800 border-b pb-2">Bậc độ lớn bước sóng & Thang điện từ</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 shadow-sm md:col-span-3">
+                    <h3 class="font-bold text-blue-800 text-lg mb-2">1. Khái niệm cốt lõi</h3>
+                    <p class="text-gray-700">Thang sóng điện từ là dải liên tục các bức xạ điện từ được sắp xếp theo <strong>bước sóng</strong> $\lambda$ (hoặc tần số $f$). Sự khác biệt về bậc độ lớn bước sóng dẫn đến sự khác biệt hoàn toàn về tính chất, năng lượng đâm xuyên và khả năng ứng dụng thực tiễn của mỗi dải bức xạ.</p>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm md:col-span-2">
+                    <h3 class="font-bold text-gray-800 text-lg mb-4 flex items-center">
+                        <span class="bg-gray-800 text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 text-xs">2</span>
+                        Bậc độ lớn bước sóng (từ Dài đến Ngắn)
+                    </h3>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-gray-700 border-collapse">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-100">
+                                <tr>
+                                    <th class="px-4 py-3 border border-gray-300 rounded-tl-lg">Loại Bức Xạ</th>
+                                    <th class="px-4 py-3 border border-gray-300 rounded-tr-lg">Khoảng Bước Sóng $\lambda$ (m)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="bg-white border-b border-gray-200">
+                                    <td class="px-4 py-2 border border-gray-300 font-semibold text-red-700">Sóng vô tuyến</td>
+                                    <td class="px-4 py-2 border border-gray-300 math-box">$\sim 10^3 \rightarrow 10^{-3}$</td>
+                                </tr>
+                                <tr class="bg-red-50 border-b border-gray-200">
+                                    <td class="px-4 py-2 border border-gray-300 font-semibold text-orange-700">Tia hồng ngoại</td>
+                                    <td class="px-4 py-2 border border-gray-300 math-box">$10^{-3} \rightarrow 7,6 \cdot 10^{-7}$</td>
+                                </tr>
+                                <tr class="bg-green-50 border-b border-gray-200">
+                                    <td class="px-4 py-2 border border-gray-300 font-bold text-green-700">Ánh sáng nhìn thấy</td>
+                                    <td class="px-4 py-2 border border-gray-300 math-box">$7,6 \cdot 10^{-7} \rightarrow 3,8 \cdot 10^{-7}$ (Đỏ đến Tím)</td>
+                                </tr>
+                                <tr class="bg-purple-50 border-b border-gray-200">
+                                    <td class="px-4 py-2 border border-gray-300 font-semibold text-purple-700">Tia tử ngoại</td>
+                                    <td class="px-4 py-2 border border-gray-300 math-box">$3,8 \cdot 10^{-7} \rightarrow \sim 10^{-9}$</td>
+                                </tr>
+                                <tr class="bg-gray-50 border-b border-gray-200">
+                                    <td class="px-4 py-2 border border-gray-300 font-semibold text-gray-800">Tia X</td>
+                                    <td class="px-4 py-2 border border-gray-300 math-box">$\sim 10^{-8} \rightarrow \sim 10^{-11}$</td>
+                                </tr>
+                                <tr class="bg-gray-100">
+                                    <td class="px-4 py-2 border border-gray-300 font-bold text-black">Tia Gamma</td>
+                                    <td class="px-4 py-2 border border-gray-300 math-box">Dưới $10^{-11}$</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-4">
+                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-200 shadow-sm text-sm h-full">
+                        <h4 class="font-bold text-blue-800 mb-2 flex items-center">💡 Mẹo ghi nhớ</h4>
+                        <p class="text-blue-900 mb-2 font-medium">Chiều <strong>giảm dần</strong> của bước sóng (tăng dần tần số & năng lượng):</p>
+                        <div class="bg-white p-2 rounded border border-blue-200 text-center font-bold text-indigo-700 uppercase mb-3">
+                            Vô - Hồng - Ánh Sáng - Tử - X - Gamma
+                        </div>
+                        <p class="text-blue-800 text-xs italic">Lưu ý: Ranh giới giữa các bức xạ không cắt đứt rõ rệt mà có sự chồng lấn nhẹ (ví dụ ranh giới Tử ngoại và Tia X).</p>
+                    </div>
+
+                    <div class="bg-red-50 p-4 rounded-xl border border-red-200 shadow-sm text-sm">
+                        <h4 class="font-bold text-red-800 mb-1 flex items-center">⚠️ Lỗi dễ nhầm</h4>
+                        <p class="text-red-900 text-xs">Nhiều bạn nghĩ Tia hồng ngoại "nóng" nên đâm xuyên mạnh hơn Tia X. Sự thật là Tia X (bước sóng cực ngắn) mới mang năng lượng cao đâm xuyên qua mô mềm, còn Hồng ngoại chủ yếu gây tác dụng nhiệt trên bề mặt vật.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-show="activeTab === 3" class="animate-fade-in no-select">
+            <h2 class="text-2xl font-bold text-indigo-800 mb-6 text-center border-b pb-2">Máy Quét Tương Tác: Thang Sóng Điện Từ</h2>
+            
+            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-md">
+                
+                <div class="relative w-full h-16 rounded-xl overflow-hidden shadow-inner spectrum-bar mb-10 border border-slate-300">
+                    <div class="absolute top-0 bottom-0 w-1 bg-white shadow-[0_0_8px_rgba(255,255,255,0.9)] z-20 transition-all duration-75"
+                         :style="{ left: pointerPosition + '%' }">
+                         <div class="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs font-bold py-1 px-2 rounded whitespace-nowrap shadow">
+                            Quét
+                         </div>
+                    </div>
+
+                    <div class="absolute inset-0 flex text-white/70 text-[10px] uppercase font-bold tracking-widest pointer-events-none">
+                        <div class="flex items-center justify-center" style="width: 25%;">Vô Tuyến</div>
+                        <div class="flex items-center justify-center" style="width: 20%;">IR</div>
+                        <div class="flex items-center justify-center text-white drop-shadow-md" style="width: 10%;">VIS</div>
+                        <div class="flex items-center justify-center" style="width: 20%;">UV</div>
+                        <div class="flex items-center justify-center" style="width: 15%;">X-Ray</div>
+                        <div class="flex items-center justify-center" style="width: 10%;">Gamma</div>
+                    </div>
+                </div>
+
+                <div class="mb-8 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <label class="block text-sm font-bold text-slate-700 mb-3 text-center">
+                        Kéo thanh trượt để khảo sát bậc độ lớn bước sóng: 
+                    </label>
+                    <input type="range" v-model.number="sliderVal" min="0" max="100" step="0.1" class="w-full accent-indigo-600 cursor-pointer h-2 bg-gray-200 rounded-lg appearance-none">
+                    <div class="flex justify-between text-xs text-gray-500 mt-2 font-mono font-bold">
+                        <span>~ 10<sup>3</sup> m (Dài)</span>
+                        <span>Bậc độ lớn $\lambda$ (m)</span>
+                        <span>~ 10<sup>-13</sup> m (Cực ngắn)</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <div class="bg-indigo-50 p-5 rounded-xl border border-indigo-200 shadow-inner flex flex-col justify-center">
+                        <h4 class="font-bold text-indigo-900 mb-4 border-b border-indigo-200 pb-2">Thông số vật lí tức thời</h4>
+                        <div class="space-y-4 font-mono text-lg text-indigo-800">
+                            <div class="flex justify-between items-center bg-white px-3 py-2 rounded shadow-sm">
+                                <span class="font-bold text-sm font-sans">Bước sóng ($\lambda$):</span>
+                                <span>~ 10<sup>{{ currentLogLambda.toFixed(2) }}</sup> <span class="text-sm">m</span></span>
+                            </div>
+                            <div class="flex justify-between items-center bg-white px-3 py-2 rounded shadow-sm">
+                                <span class="font-bold text-sm font-sans">Tần số ($f$):</span>
+                                <span>~ 3 &times; 10<sup>{{ currentLogFreq.toFixed(2) }}</sup> <span class="text-sm">Hz</span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-5 rounded-xl border shadow-md flex flex-col justify-center transition-colors duration-300"
+                         :class="currentRegion.bgColor">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="font-extrabold text-xl uppercase tracking-wider" :class="currentRegion.textColor">
+                                {{ currentRegion.name }}
+                            </h3>
+                            <span class="text-3xl">{{ currentRegion.icon }}</span>
+                        </div>
+                        
+                        <p class="text-sm font-medium mb-3 min-h-[40px]" :class="currentRegion.textColor">
+                            {{ currentRegion.description }}
+                        </p>
+
+                        <div class="mt-auto">
+                            <span class="text-xs font-bold uppercase" :class="currentRegion.textColor">Năng lượng / Khả năng đâm xuyên:</span>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5 mt-1">
+                                <div class="h-2.5 rounded-full transition-all duration-300" 
+                                     :style="{ width: currentRegion.power + '%' }"
+                                     :class="currentRegion.powerColor"></div>
+                            </div>
+                            <span class="text-[10px] font-bold mt-1 float-right" :class="currentRegion.textColor">{{ currentRegion.powerText }}</span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div v-show="activeTab === 4" class="animate-fade-in space-y-6">
+            <h2 class="text-2xl font-bold text-blue-800 mb-4 text-center border-b pb-2">Đánh giá & Khắc sâu kiến thức</h2>
+            
+            <div class="space-y-6">
+                <div v-for="(q, qIdx) in quizData" :key="qIdx" class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                    <h3 class="font-bold text-base text-gray-800 mb-3 flex items-start">
+                        <span class="bg-blue-600 text-white rounded-full w-7 h-7 flex items-center justify-center shrink-0 mr-3 mt-0.5 text-xs">{{ qIdx + 1 }}</span>
+                        <span v-html="q.question" class="leading-relaxed"></span>
+                    </h3>
+                    
+                    <div class="space-y-2.5 ml-10">
+                        <label v-for="(opt, optIdx) in q.options" :key="optIdx" 
+                            class="flex items-start p-3 rounded-lg border cursor-pointer text-sm transition-all"
+                            :class="[
+                                q.selected === optIdx ? 'bg-blue-50 border-blue-300' : 'bg-slate-50 border-gray-200 hover:bg-gray-100',
+                                q.checked && opt.isCorrect ? 'ring-2 ring-green-500 bg-green-50' : '',
+                                q.checked && q.selected === optIdx && !opt.isCorrect ? 'ring-2 ring-red-500 bg-red-50' : ''
+                            ]">
+                            <input type="radio" :name="'quiz_ans_' + qIdx" :value="optIdx" v-model="q.selected" :disabled="q.checked" class="mt-0.5 w-4 h-4 text-blue-600">
+                            <span class="ml-3 text-gray-700 font-medium" v-html="opt.text"></span>
+                        </label>
+                    </div>
+
+                    <div class="ml-10 mt-3.5">
+                        <button v-if="!q.checked" @click="checkAnswer(qIdx)" :disabled="q.selected === null" 
+                            class="px-6 py-2 bg-blue-600 text-white font-bold rounded shadow hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-xs transition-colors">
+                            Xác nhận chọn
+                        </button>
+
+                        <div v-if="q.checked" class="mt-3 p-4 rounded-lg border-l-4 animate-fade-in text-sm math-box"
+                            :class="q.options[q.selected].isCorrect ? 'bg-green-50 border-green-500 text-green-900' : 'bg-red-50 border-red-500 text-red-900'">
+                            <p class="font-bold flex items-center mb-1">
+                                <span v-if="q.options[q.selected].isCorrect" class="mr-1">✅ ĐÚNG:</span>
+                                <span v-else class="mr-1">❌ SAI LẦM:</span>
+                            </p>
+                            <p v-html="q.options[q.selected].feedback" class="leading-relaxed"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const app = Vue.createApp({
+            data() {
+                return {
+                    tabs: [
+                        { id: 1, name: 'Khởi động' },
+                        { id: 2, name: 'Lý thuyết trọng tâm' },
+                        { id: 3, name: 'Quét Thang Sóng' },
+                        { id: 4, name: 'Trắc nghiệm đánh giá' }
+                    ],
+                    activeTab: 1,
+                    
+                    // Tab 1 Data
+                    dragData: {
+                        unassigned: [
+                            { id: 1, text: 'Dùng trong liên lạc vệ tinh, phát thanh và truyền hình.', type: 'votuyen' },
+                            { id: 2, text: 'Tác dụng nhiệt rất mạnh, sưởi ấm, camera ảnh nhiệt ban đêm.', type: 'hongngoai' },
+                            { id: 3, text: 'Tác dụng diệt khuẩn, tiệt trùng dụng cụ y tế, phát hiện tiền giả.', type: 'tungoai' },
+                            { id: 4, text: 'Đâm xuyên mạnh qua mô mềm, dùng chụp ảnh xương khớp y tế.', type: 'tiax' }
+                        ],
+                        zone_votuyen: [],
+                        zone_hongngoai: [],
+                        zone_tungoai: [],
+                        zone_tiax: []
+                    },
+                    dragFeedback: '',
+                    dragIsCorrect: false,
+
+                    // Tab 3 Data (Mô phỏng Thang Sóng)
+                    sliderVal: 40, // Thanh trượt phần trăm 0 - 100
+
+                    // Tab 4 Data
+                    quizData: [
+                        {
+                            question: 'Trong thang sóng điện từ, bức xạ nào sau đây có bước sóng dài nhất?',
+                            options: [
+                                { text: 'Tia X (Tia Roentgen).', isCorrect: false, feedback: '<b>Sai:</b> Tia X có bước sóng cực kì ngắn (cỡ nanomet), mang năng lượng rất cao.' },
+                                { text: 'Tia hồng ngoại.', isCorrect: false, feedback: '<b>Sai:</b> Hồng ngoại có bước sóng dài hơn ánh sáng đỏ, nhưng vẫn ngắn hơn sóng vô tuyến.' },
+                                { text: 'Sóng vô tuyến.', isCorrect: true, feedback: '<b>Chính xác!</b> Hãy nhớ quy luật "Vô - Hồng - Ánh Sáng - Tử - X - Gamma" là theo chiều giảm dần của bước sóng. Sóng vô tuyến đứng đầu nên có bước sóng dài nhất (đến hàng km).' },
+                                { text: 'Ánh sáng nhìn thấy.', isCorrect: false, feedback: '<b>Sai:</b> Ánh sáng nhìn thấy nằm ở khúc giữa thang sóng, có bước sóng cỡ micromet.' }
+                            ],
+                            selected: null,
+                            checked: false
+                        },
+                        {
+                            question: 'So sánh năng lượng và khả năng đâm xuyên của các bức xạ, phát biểu nào sau đây là chuẩn xác?',
+                            options: [
+                                { text: 'Tia hồng ngoại có khả năng đâm xuyên mạnh hơn tia X vì nó toả nhiệt rất nóng.', isCorrect: false, feedback: '<b>Lỗi ngộ nhận:</b> Tác dụng toả nhiệt không liên quan đến khả năng đâm xuyên qua cấu trúc vật chất cứng.' },
+                                { text: 'Tia X có bước sóng ngắn hơn tia tử ngoại nên đâm xuyên mạnh hơn.', isCorrect: true, feedback: '<b>Chính xác!</b> Bước sóng càng ngắn (như Tia X, Gamma) thì năng lượng của sóng càng cao, dẫn đến sức đâm xuyên qua các vật cản (như mô mềm người) càng mạnh.' },
+                                { text: 'Sóng vô tuyến đâm xuyên qua cơ thể gây đứt gãy ADN vì bước sóng quá dài.', isCorrect: false, feedback: '<b>Sai lầm:</b> Sóng bước sóng dài năng lượng rất thấp, không thể bẻ gãy liên kết ADN. Khả năng này thuộc về tử ngoại, tia X, gamma.' },
+                                { text: 'Ánh sáng nhìn thấy mang năng lượng cao nhất trong toàn bộ thang điện từ.', isCorrect: false, feedback: '<b>Sai:</b> Năng lượng ánh sáng rất khiêm tốn so với tia X hay tia Gamma.' }
+                            ],
+                            selected: null,
+                            checked: false
+                        },
+                        {
+                            question: 'Bức xạ điện từ có bước sóng $\\lambda = 0,5 \\cdot 10^{-6} \\text{ m}$ (hay $0,5 \\,\\mu\\text{m}$) thuộc vùng nào trong thang sóng điện từ?',
+                            options: [
+                                { text: 'Vùng tia tử ngoại.', isCorrect: false, feedback: '<b>Sai:</b> Tử ngoại phải có bước sóng ngắn hơn $0,38 \\,\\mu\\text{m}$.' },
+                                { text: 'Vùng ánh sáng nhìn thấy.', isCorrect: true, feedback: '<b>Đúng!</b> Dựa vào bảng ranh giới, ánh sáng nhìn thấy trải từ $0,38 \\,\\mu\\text{m}$ (Tím) đến $0,76 \\,\\mu\\text{m}$ (Đỏ). Giá trị $0,5 \\,\\mu\\text{m}$ nằm trọn trong vùng này (màu lục/vàng).' },
+                                { text: 'Vùng tia hồng ngoại.', isCorrect: false, feedback: '<b>Sai:</b> Hồng ngoại phải dài hơn ánh sáng đỏ (lớn hơn $0,76 \\,\\mu\\text{m}$).' },
+                                { text: 'Vùng tia X.', isCorrect: false, feedback: '<b>Sai:</b> Bậc độ lớn của tia X rất nhỏ, cỡ $10^{-9}$ mét trở xuống.' }
+                            ],
+                            selected: null,
+                            checked: false
+                        },
+                        {
+                            question: 'Một đài phát thanh phát ra sóng điện từ có tần số $f = 100 \\text{ MHz}$ ($10^8 \\text{ Hz}$). Trong chân không, bức xạ này có bước sóng là bao nhiêu và thuộc dải nào?',
+                            options: [
+                                { text: '$3 \\text{ m}$ – thuộc vùng sóng vô tuyến.', isCorrect: true, feedback: '<b>Hoàn toàn chính xác!</b> Vận dụng công thức $\\lambda = \\frac{c}{f} = \\frac{3 \\cdot 10^8}{10^8} = 3 \\text{ m}$. Với bậc độ lớn hàng mét, bức xạ này chắc chắn là sóng vô tuyến dùng trong truyền thanh.' },
+                                { text: '$3 \\cdot 10^{-8} \\text{ m}$ – thuộc vùng tia tử ngoại.', isCorrect: false, feedback: '<b>Nhầm công thức:</b> Bạn đã lấy tần số chia cho c thay vì c chia cho tần số.' },
+                                { text: '$0,33 \\text{ m}$ – thuộc vùng sóng vô tuyến.', isCorrect: false, feedback: '<b>Lỗi tính toán:</b> Hãy cẩn thận tính lại $\\frac{3}{1}$.' },
+                                { text: '$3 \\text{ m}$ – thuộc vùng tia hồng ngoại.', isCorrect: false, feedback: '<b>Sai phân loại:</b> Hồng ngoại có bước sóng cỡ milimet đến micromet, không thể dài tới 3 mét.' }
+                            ],
+                            selected: null,
+                            checked: false
+                        }
+                    ]
+                }
+            },
+            computed: {
+                // ĐÃ SỬA: Nội suy tuyến tính từng khúc để "bẻ cong" giá trị toán học cho khớp với vị trí % trên thanh màu trực quan
+                currentLogLambda() {
+                    const val = this.sliderVal;
+                    if (val <= 25) {
+                        return 3 - (6 / 25) * val; // Vô tuyến: 0% -> 25% (3 -> -3)
+                    } else if (val <= 45) {
+                        return -3 - (3.12 / 20) * (val - 25); // Hồng ngoại: 25% -> 45% (-3 -> -6.12)
+                    } else if (val <= 55) {
+                        return -6.12 - (0.3 / 10) * (val - 45); // Ánh sáng: 45% -> 55% (-6.12 -> -6.42)
+                    } else if (val <= 75) {
+                        return -6.42 - (2.58 / 20) * (val - 55); // Tử ngoại: 55% -> 75% (-6.42 -> -9)
+                    } else if (val <= 90) {
+                        return -9 - (2 / 15) * (val - 75); // Tia X: 75% -> 90% (-9 -> -11)
+                    } else {
+                        return -11 - (2 / 10) * (val - 90); // Gamma: 90% -> 100% (-11 -> -13)
+                    }
+                },
+                
+                // f = c / lambda
+                currentLogFreq() {
+                    return 8.477 - this.currentLogLambda;
+                },
+
+                pointerPosition() {
+                    return this.sliderVal;
+                },
+
+                // Lấy thông tin thuộc tính khớp với % đã kéo
+                currentRegion() {
+                    const val = this.sliderVal;
+                    if (val <= 25) {
+                        return { 
+                            name: 'Sóng Vô Tuyến', icon: '📡', power: 5, powerText: 'Rất yếu (Truyền thông tin)', powerColor: 'bg-green-500', 
+                            bgColor: 'bg-red-50 border-red-200', textColor: 'text-red-900',
+                            description: 'Bước sóng rất dài. Ứng dụng để truyền tải thông tin liên lạc vô tuyến, truyền hình, Wi-Fi.'
+                        };
+                    } else if (val <= 45) {
+                        return { 
+                            name: 'Tia Hồng Ngoại', icon: '🌡️', power: 15, powerText: 'Yếu (Tác dụng nhiệt)', powerColor: 'bg-yellow-500',
+                            bgColor: 'bg-orange-50 border-orange-200', textColor: 'text-orange-900',
+                            description: 'Mắt người không thấy được. Đặc trưng là tác dụng nhiệt rất mạnh. Dùng trong remote, sưởi ấm.'
+                        };
+                    } else if (val <= 55) {
+                        return { 
+                            name: 'Ánh sáng nhìn thấy', icon: '👁️', power: 25, powerText: 'Trung bình (Kích thích thị giác)', powerColor: 'bg-blue-400',
+                            bgColor: 'bg-blue-50 border-blue-200', textColor: 'text-blue-900',
+                            description: 'Dải rất hẹp giúp mắt người quan sát thế giới (từ màu Đỏ đến Tím). Tham gia quang hợp.'
+                        };
+                    } else if (val <= 75) {
+                        return { 
+                            name: 'Tia Tử Ngoại', icon: '🦠', power: 50, powerText: 'Mạnh (Tác dụng quang hoá/sinh học)', powerColor: 'bg-purple-500',
+                            bgColor: 'bg-purple-50 border-purple-200', textColor: 'text-purple-900',
+                            description: 'Có trong ánh sáng mặt trời. Tác dụng diệt khuẩn, làm đen da, kích thích huỳnh quang.'
+                        };
+                    } else if (val <= 90) {
+                        return { 
+                            name: 'Tia X (Roentgen)', icon: '🦴', power: 85, powerText: 'Rất Mạnh (Đâm xuyên qua mô mềm)', powerColor: 'bg-gray-700',
+                            bgColor: 'bg-gray-100 border-gray-300', textColor: 'text-gray-900',
+                            description: 'Năng lượng cao, đâm xuyên mạnh qua thịt da nhưng bị cản bởi xương, kim loại. Dùng chụp X-quang.'
+                        };
+                    } else {
+                        return { 
+                            name: 'Tia Gamma', icon: '☢️', power: 100, powerText: 'Cực Độ (Phá huỷ cấu trúc hạt nhân/ADN)', powerColor: 'bg-black',
+                            bgColor: 'bg-slate-200 border-slate-400', textColor: 'text-slate-900',
+                            description: 'Bước sóng cực ngắn. Năng lượng lớn nhất, xuyên qua hàng chục cm bê tông. Dùng xạ trị ung thư.'
+                        };
+                    }
+                }
+            },
+            methods: {
+                switchTab(tabId) {
+                    this.activeTab = tabId;
+                    this.triggerMathJax();
+                },
+                
+                checkDragDrop() {
+                    if (this.dragData.unassigned.length > 0) {
+                        this.dragFeedback = 'Vui lòng sắp xếp hết 4 ứng dụng vào 4 hộp bức xạ nhé!';
+                        this.dragIsCorrect = false;
+                        return;
+                    }
+                    const errVoTuyen = this.dragData.zone_votuyen.some(item => item.type !== 'votuyen');
+                    const errHongNgoai = this.dragData.zone_hongngoai.some(item => item.type !== 'hongngoai');
+                    const errTuNgoai = this.dragData.zone_tungoai.some(item => item.type !== 'tungoai');
+                    const errTiaX = this.dragData.zone_tiax.some(item => item.type !== 'tiax');
+
+                    if (errVoTuyen || errHongNgoai || errTuNgoai || errTiaX) {
+                        this.dragFeedback = 'Chưa đúng rồi! Hãy suy luận: Xương khớp cần đâm xuyên mạnh (X), Sưởi ấm cần nhiệt (Hồng ngoại).';
+                        this.dragIsCorrect = false;
+                    } else {
+                        this.dragFeedback = 'Chính xác 100%! Bạn đã nắm vững các ứng dụng cơ bản nhất của thang sóng điện từ.';
+                        this.dragIsCorrect = true;
+                    }
+                },
+
+                triggerMathJax() {
+                    this.$nextTick(() => {
+                        if (typeof MathJax !== 'undefined' && MathJax.typesetPromise) {
+                            MathJax.typesetPromise().catch((err) => console.log('MathJax Error:', err));
+                        }
+                    });
+                },
+
+                checkAnswer(qIdx) {
+                    this.quizData[qIdx].checked = true;
+                    this.triggerMathJax();
+                }
+            },
+            mounted() {
+                this.triggerMathJax();
+            }
+        });
+
+        app.component('draggable', window.vuedraggable);
+        app.mount('#app');
+    </script>
+</body>
+</html>
